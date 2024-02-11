@@ -1,0 +1,65 @@
+#+TITLE: GNU Guix package manager on Fedora Silverblue
+#+OPTIONS: toc:nil num:3 H:3 ^:nul pri:t
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="org.css"/>
+
+#+BEGIN_abstract
+Fedora Silverblue uses and immutable root filesystem, meaning that any
+changes make to `/` are likely rolled back on the next upgrade. Gnu
+Guix is an immutable package manager that is conceptually a good fit
+for an immutable Linux distribution. Getting the two to play nice is
+not straight-forward, as Gnu Guix expects to be able to write to
+`/gnu`.
+
+This approach uses a bind mount from `/var/gnu` to `/gnu`, with a
+modification to `/etc/fstab` to persist the mount.
+#+END_abstract
+
+#+TOC: headlines 2
+
+* Quickstart
+
+1. Add \cite{lantw44-guix} COPR repository to `/etc/yum.repos.d/`
+2. Run `sudo rpm-ostree install guix`
+3. Create `/var/gnu` directory
+4. Add the line `/var/gnu	/gnu	none	defaults,bind	0	0` to `/etc/fstab`
+5. Reboot
+6. Guix is now installed and will persist across updates
+
+*  Explanation
+
+Steps 1. and 2. should make sense as is, but the rest are
+interesting. In Fedora Silverblue (and Kinoite etc.), the root
+filesystem is immutable. You can override that using `sudo chattr -i
+/` to disable immutability of the file system and enable it again with
+`sudo chattr +i /`, but any changes you make will be overwritten on
+the next system update because of how rpm-ostree works. Working around
+that is what steps 3. and 4. are for.
+
+** Create `/var/gnu` directory
+
+There are two places on the filesystem in Fedora Silverblue which are
+not overwritten by rpm-ostree: `/var` and `/etc`. You might have
+noticed that, since the user home dirs are stored in `/var/home` and
+symlinked to `/home` by the system. If we can get GNU Guix to put the
+store somewhere in `/var` instead of the default `/gnu` we are
+good. Symlinking will not work as Guix will not accept the store being
+a symlink, so that is out. A comment on \cite{guix-store-reddit-01}
+mentions doing a "bind mount" to put the GNU Guix store on a different
+partition, and the same can be done to have it reside somewhere else
+on the same partition.
+
+I chose to use `/var/gnu` as the place to put the Guix store.
+
+** Add fstab line
+
+This is how we make the change permanent, even though we cannot create
+directories in the root filesystem without having them overwritten
+during updates. `/etc/fstab` is writable and will create the mount
+points put there some time during system boot, which solves the
+problem of persisting the mapping from `/gnu` to `/var/gnu`.
+
+* References :ignore:
+
+#+BIBLIOGRAPHY: ref plain limit:t option:-nokeywords
+
+* Footnotes
